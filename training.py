@@ -56,8 +56,10 @@ drop3 = Dropout(0.5)(hidden3)
 output = Dense(1)(drop3)
 
 model = Model(x_input, output)
-model.compile(optimizer='adam', loss='mse')
+model.compile(optimizer='adam', loss='mae')
+model.summary()
+print("")
 
-model.fit(x_train, y_train, batch_size=64, epochs=10, validation_split=0.2, shuffle=True)
+model.fit(x_train, y_train, batch_size=64, epochs=10, validation_split=0.2, shuffle=True, verbose=2)
 
 model.save('model.h5')

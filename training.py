@@ -7,24 +7,7 @@ import numpy as np
 from keras.models import Model
 from keras.layers import Input, Conv2D, MaxPool2D, Dense, Flatten, Dropout
 
-ROOT_DIR = os.getcwd()
-IMAGES_DIR = os.path.join(ROOT_DIR, 'IMG')
-CSV_FILE = os.path.join(ROOT_DIR, 'driving_log.csv')
 
-lines = []
-with open(CSV_FILE, 'r') as f:
-  reader = csv.reader(f)
-  for line in reader:
-    lines.append(line)
-
-header = lines.pop(0)
-images = []
-measurements = []
-for line in lines:
-  file_path = os.path.join(IMAGES_DIR, line[0].split('/')[-1])
-  img = cv2.imread(file_path)
-  images.append(img)
-  measurements.append(float(line[3]))
 
 
 x_train = np.array(images) / 255.
@@ -62,5 +45,5 @@ model.summary()
 print("")
 
 model.fit(x_train, y_train, batch_size=64, epochs=10, validation_split=0.2, shuffle=True, verbose=2)
-
+model.fit_generator()
 model.save('model.h5')

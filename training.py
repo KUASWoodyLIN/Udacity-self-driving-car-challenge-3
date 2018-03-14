@@ -17,6 +17,7 @@ with open(CSV_FILE, 'r') as f:
   for line in reader:
     lines.append(line)
 
+header = lines.pop(0)
 images = []
 measurements = []
 for line in lines:
@@ -26,7 +27,7 @@ for line in lines:
   measurements.append(float(line[3]))
 
 
-x_train = np.array(images)
+x_train = np.array(images) / 255.
 y_train = np.array(measurements)
 
 x_input = Input(shape=(160, 320, 3), name='x_input')
@@ -44,13 +45,13 @@ pool3 = MaxPool2D()(conv5)
 
 flat = Flatten()(pool3)
 
-hidden1 = Dense(256, activation='relu')(flat)
+hidden1 = Dense(256)(flat)
 drop1 = Dropout(0.5)(hidden1)
 
-hidden2 = Dense(128, activation='relu')(drop1)
+hidden2 = Dense(128)(drop1)
 drop2 = Dropout(0.5)(hidden2)
 
-hidden3 = Dense(32, activation='relu')(drop2)
+hidden3 = Dense(32)(drop2)
 drop3 = Dropout(0.5)(hidden3)
 
 output = Dense(1)(drop3)

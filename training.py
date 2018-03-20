@@ -5,9 +5,10 @@ from glob import glob
 import cv2
 import numpy as np
 
+from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
 from keras.models import Model
-from keras.layers import Input, Conv2D, MaxPooling2D, Dense, Flatten, Dropout
+from keras.layers import Input, Conv2D, MaxPooling2D, Dense, Flatten, Dropout, Cropping2D, Lambda
 from keras.callbacks import EarlyStopping, ModelCheckpoint,TensorBoard
 
 # Path Setting
@@ -66,9 +67,9 @@ def generator(x, y, batch_size):
         img_flip = cv2.flip(img, 1)
         x_batch.append(img_flip)
         y_batch.append(-steer)
-      x_batch = np.array(x_batch) / 255.
+      x_batch = np.array(x_batch)
       y_batch = np.array(y_batch)
-      yield x_batch, y_batch
+      yield shuffle(x_batch, y_batch)
 
 
 # Data preprocessing
@@ -83,9 +84,9 @@ def valid_proc(x, y):
     img_flip = cv2.flip(img, 1)
     x_out.append(img_flip)
     y_out.append(-steer)
-  x_out = np.array(x_out) / 255.
+  x_out = np.array(x_out)
   y_out = np.array(y_out)
-  return x_out, y_out
+  return shuffle(x_out, y_out)
 
 
 x_valid, y_valid = valid_proc(x_valid, y_valid)
@@ -93,16 +94,18 @@ x_valid, y_valid = valid_proc(x_valid, y_valid)
 
 def main():
   x_input = Input(shape=(160, 320, 3), name='x_input')
+  crop = Cropping2D(((55,20),(0,0)))(x_input)
+  normalize = Lambda(lambda x: (x /255.0) - 0.5)(crop)
 
   # LeNet
-  conv1 = Conv2D(6, (5, 5), padding='same', activation='relu')(x_input)
-  pool1 = MaxPooling2D()(conv1)
-  conv2 = Conv2D(6, (5, 5), padding='same', activation='relu')(pool1)
-  pool2 = MaxPooling2D()(conv2)
-  flat = Flatten()(pool2)
-  hedden1 = Dense(120)(flat)
-  hedden2 = Dense(84)(hedden1)
-  output = Dense(1)(hedden2)
+  #conv1 = Conv2D(6, (5, 5), padding='same', activation='relu')(normalize)
+  #pool1 = MaxPooling2D()(conv1)
+  #conv2 = Conv2D(6, (5, 5), padding='same', activation='relu')(pool1)
+  #pool2 = MaxPooling2D()(conv2)
+  #flat = Flatten()(pool2)
+  #hedden1 = Dense(120)(flat)
+  #hedden2 = Dense(84)(hedden1)
+  #output = Dense(1)(hedden2)
 
 
   # VGG-16
@@ -125,6 +128,22 @@ def main():
   # drop3 = Dropout(0.5)(hidden3)
   # output = Dense(1)(drop3)
 
+  # Nvidia
+  conv1 = Conv2D(24, (5, 5), padding='same', activation='relu')(normalize)
+  pool1 = MaxPooling2D()(conv1)
+  conv2 = Conv2D(36, (5, 5), padding='same', activation='relu')(pool1)
+  pool2 = MaxPooling2D()(conv2)
+  conv3 = Conv2D(48, (5, 5), padding='same', activation='relu')(pool2)
+  pool3 = MaxPooling2D()(conv3)
+  conv4 = Conv2D(64, (3, 3), padding='same', activation='relu')(pool3)
+  pool4 = MaxPooling2D()(conv4)
+  conv5 = Conv2D(64, (3, 3), padding='same', activation='relu')(pool4)
+  pool5 = MaxPooling2D()(conv5)
+  flat = Flatten()(pool5)
+  hidden1 = Dense(100)(flat)
+  hidden2 = Dense(50)(hidden1)
+  output = Dense(1)(hidden2)
+
 
   model = Model(x_input, output)
   model.compile(optimizer='adam', loss='mse')
@@ -132,8 +151,8 @@ def main():
   print("")
 
   early_stop = EarlyStopping(monitor='val_loss',
-                             min_delta=0.001,
-                             patience=3,
+                             min_delta=0.0005,
+                             patience=4,
                              mode='min',
                              verbose=1)
 
@@ -150,13 +169,25 @@ def main():
                             write_grads=True,
                             write_images=False)
 
+#  train_generator = generator(x_train, y_train, 64)
+#  valid_generator = generator(x_valid, y_valid, 64)
+
+  print('train: {}, valid: {}'.format(len(x_train), len(x_valid)))
   model.fit_generator(generator=generator(x_train, y_train, 64),
                       steps_per_epoch=int(np.ceil(len(x_train)*2/64)),
-                      epochs=10,
+                      epochs=20,
                       verbose=1,
-                      validation_data=generator(x_valid, y_valid, 64),
-                      validation_steps=int(np.ceil(len(x_valid) * 2 / 64)),
+                      validation_data=(x_valid, y_valid),
                       callbacks=[early_stop, checkpoint, tensorboard])
+
+#  model.fit_generator(generator=train_generator,
+#                      steps_per_epoch=len(x_train)/32,
+#                      epochs=20,
+#                      verbose=1,
+#                      validation_data=valid_generator,
+#		      validation_steps=len(x_valid)/32,
+#                      callbacks=[early_stop, checkpoint, tensorboard])
+
 
 
 if __name__ == '__main__':

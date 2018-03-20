@@ -115,19 +115,19 @@ def main():
                                period=1)
 
   log_file_name = 'Driving_Car_' + str(len(glob(LOGS_PATH + '/Driving_Car_*')) + 1)
-
   tensorboard = TensorBoard(log_dir='./logs/' + log_file_name,
                             histogram_freq=0,
                             write_grads=True,
                             write_images=False)
 
-  # Add callback
-  model.fit_generator(generator=generator(x_train, y_train, 64),
-                      steps_per_epoch=int(np.ceil(len(x_train)*2/64)), epochs=10,
-                      verbose=1,
-                      validation_data=generator(x_valid, y_valid, 64),
-                      validation_steps=int(np.ceil(len(x_valid)*2/64)),
-                      callbacks=[early_stop, checkpoint, tensorboard])
+  model.fit(x_train, y_train, 64, epochs=4, validation_data=(x_valid, y_valid))
+
+  # model.fit_generator(generator=generator(x_train, y_train, 64),
+  #                     steps_per_epoch=int(np.ceil(len(x_train)*2/64)), epochs=10,
+  #                     verbose=1,
+  #                     validation_data=generator(x_valid, y_valid, 64),
+  #                     validation_steps=int(np.ceil(len(x_valid)*2/64)),
+  #                     callbacks=[early_stop, checkpoint, tensorboard])
 
 
 if __name__ == '__main__':

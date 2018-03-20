@@ -33,8 +33,27 @@ for line in lines:
 
 
 # Shuffle, and train / validation set
-x_train, x_valid, y_train, y_valid = train_test_split(x_data, y_data, test_size=0.3, shuffle=True)
+x_train, x_valid, y_train, y_valid = train_test_split(x_data, y_data, test_size=0.2, shuffle=True)
 
+
+# preprocessing
+def valid_proc(x, y):
+  x_out = []
+  y_out = []
+  for img_path, steer in zip(x, y):
+    img = cv2.imread(img_path)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    x_out.append(img)
+    y_out.append(steer)
+    img_flip = cv2.flip(img, 1)
+    x_out.append(img_flip)
+    y_out.append(-steer)
+  x_out = np.array(x_out) / 255.
+  y_out = np.array(y_out)
+  return x_out, y_out
+
+
+x_valid, y_valid = valid_proc(x_valid, y_valid)
 
 # Generator
 def generator(x, y, batch_size):
@@ -115,19 +134,18 @@ def main():
                                period=1)
 
   log_file_name = 'Driving_Car_' + str(len(glob(LOGS_PATH + '/Driving_Car_*')) + 1)
-
   tensorboard = TensorBoard(log_dir='./logs/' + log_file_name,
                             histogram_freq=0,
                             write_grads=True,
                             write_images=False)
 
+  # model.fit(x_train, y_train, batch_size=64, epochs=4, validation_data=(x_valid, y_valid))
 
-  # Add callback
   model.fit_generator(generator=generator(x_train, y_train, 64),
-                      steps_per_epoch=int(np.ceil(len(x_train)*2/64)), epochs=10,
+                      steps_per_epoch=int(np.ceil(len(x_train)*2/64)),
+		      epochs=10,
                       verbose=1,
-                      validation_data=generator(x_valid, y_valid, 64),
-                      validation_steps=int(np.ceil(len(x_valid)*2/64)),
+                      validation_data=(x_valid, y_valid),
                       callbacks=[early_stop, checkpoint, tensorboard])
 
 

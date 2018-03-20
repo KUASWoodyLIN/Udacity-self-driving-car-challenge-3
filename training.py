@@ -103,7 +103,7 @@ def main():
 
   early_stop = EarlyStopping(monitor='val_loss',
                              min_delta=0.001,
-                             patience=3,   # 如果超過3次的循環在loss的收斂上沒有改善就停止
+                             patience=3,
                              mode='min',
                              verbose=1)
 
@@ -120,6 +120,7 @@ def main():
                             histogram_freq=0,
                             write_grads=True,
                             write_images=False)
+
 
   # Add callback
   model.fit_generator(generator=generator(x_train, y_train, 64),

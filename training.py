@@ -28,32 +28,27 @@ header = lines.pop(0)
 x_data = []
 y_data = []
 for line in lines:
-  x_data.append(os.path.join(IMAGES_DIR, line[0].split('/')[-1]))
-  y_data.append(float(line[3]))
+  # image path
+  img_center = os.path.join(IMAGES_DIR, line[0].split('/')[-1])
+  img_left = os.path.join(IMAGES_DIR, line[1].split('/')[-1])
+  img_right = os.path.join(IMAGES_DIR, line[2].split('/')[-1])
+  x_data.append(img_center)
+  x_data.append(img_left)
+  x_data.append(img_right)
+
+  # steering angle
+  steering_center = float(line[3])
+  correction = 0.2  # this is a parameter to tune
+  steering_left = steering_center + correction
+  steering_right = steering_center - correction
+  y_data.append(steering_center)
+  y_data.append(steering_left)
+  y_data.append(steering_right)
 
 
 # Shuffle, and train / validation set
 x_train, x_valid, y_train, y_valid = train_test_split(x_data, y_data, test_size=0.2, shuffle=True)
 
-
-# preprocessing
-def valid_proc(x, y):
-  x_out = []
-  y_out = []
-  for img_path, steer in zip(x, y):
-    img = cv2.imread(img_path)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    x_out.append(img)
-    y_out.append(steer)
-    img_flip = cv2.flip(img, 1)
-    x_out.append(img_flip)
-    y_out.append(-steer)
-  x_out = np.array(x_out) / 255.
-  y_out = np.array(y_out)
-  return x_out, y_out
-
-
-x_valid, y_valid = valid_proc(x_valid, y_valid)
 
 # Generator
 def generator(x, y, batch_size):
@@ -76,6 +71,26 @@ def generator(x, y, batch_size):
       yield x_batch, y_batch
 
 
+# Data preprocessing
+def valid_proc(x, y):
+  x_out = []
+  y_out = []
+  for img_path, steer in zip(x, y):
+    img = cv2.imread(img_path)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    x_out.append(img)
+    y_out.append(steer)
+    img_flip = cv2.flip(img, 1)
+    x_out.append(img_flip)
+    y_out.append(-steer)
+  x_out = np.array(x_out) / 255.
+  y_out = np.array(y_out)
+  return x_out, y_out
+
+
+x_valid, y_valid = valid_proc(x_valid, y_valid)
+
+
 def main():
   x_input = Input(shape=(160, 320, 3), name='x_input')
 
@@ -94,11 +109,9 @@ def main():
   # conv1 = Conv2D(32, (3,3), padding='same', activation='relu')(x_input)
   # conv2 = Conv2D(32, (3,3), padding='same', activation='relu')(conv1)
   # pool1 = MaxPool2D()(conv2)
-  #
   # conv3 = Conv2D(64, (3,3), padding='same', activation='relu')(pool1)
   # conv4 = Conv2D(64, (3,3), padding='same', activation='relu')(conv3)
   # pool2 = MaxPool2D()(conv4)
-  #
   # conv5 = Conv2D(128, (3,3), padding='same', activation='relu')(pool2)
   # pool3 = MaxPool2D()(conv5)
   #
@@ -106,14 +119,12 @@ def main():
 
   # hidden1 = Dense(256)(flat)
   # drop1 = Dropout(0.5)(hidden1)
-  #
   # hidden2 = Dense(128)(drop1)
   # drop2 = Dropout(0.5)(hidden2)
-  #
   # hidden3 = Dense(32)(drop2)
   # drop3 = Dropout(0.5)(hidden3)
-  #
   # output = Dense(1)(drop3)
+
 
   model = Model(x_input, output)
   model.compile(optimizer='adam', loss='mse')
@@ -139,11 +150,9 @@ def main():
                             write_grads=True,
                             write_images=False)
 
-  # model.fit(x_train, y_train, batch_size=64, epochs=4, validation_data=(x_valid, y_valid))
-
   model.fit_generator(generator=generator(x_train, y_train, 64),
                       steps_per_epoch=int(np.ceil(len(x_train)*2/64)),
-		      epochs=10,
+                      epochs=10,
                       verbose=1,
                       validation_data=(x_valid, y_valid),
                       callbacks=[early_stop, checkpoint, tensorboard])

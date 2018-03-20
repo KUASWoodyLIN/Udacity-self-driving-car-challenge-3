@@ -51,7 +51,6 @@ def generator(x, y, batch_size):
         y_batch.append(-steer)
       x_batch = np.array(x_batch) / 255.
       y_batch = np.array(y_batch)
-      print('start: {}  end: {}'.format(start, end))
       yield x_batch, y_batch
 
 
@@ -83,7 +82,7 @@ def main():
   output = Dense(1)(drop3)
 
   model = Model(x_input, output)
-  model.compile(optimizer='adam', loss='mae')
+  model.compile(optimizer='adam', loss='mse')
   model.summary()
   print("")
 
@@ -91,8 +90,8 @@ def main():
 
   # Add callback
   model.fit_generator(generator=generator(x_train, y_train, 64),
-                      steps_per_epoch=int(np.ceil(len(x_train)*2/64)), epochs=1,
-                      verbose=2,
+                      steps_per_epoch=int(np.ceil(len(x_train)*2/64)), epochs=3,
+                      verbose=1,
                       validation_data=generator(x_valid, y_valid, 64),
                       validation_steps=int(np.ceil(len(x_valid)*2/64)))
   model.save('model.h5')

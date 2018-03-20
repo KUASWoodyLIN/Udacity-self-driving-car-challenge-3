@@ -38,7 +38,7 @@ for line in lines:
 
   # steering angle
   steering_center = float(line[3])
-  correction = 0.2  # this is a parameter to tune
+  correction = 0.25  # this is a parameter to tune
   steering_left = steering_center + correction
   steering_right = steering_center - correction
   y_data.append(steering_center)
@@ -47,7 +47,7 @@ for line in lines:
 
 
 # Shuffle, and train / validation set
-x_train, x_valid, y_train, y_valid = train_test_split(x_data, y_data, test_size=0.2, shuffle=True)
+x_train, x_valid, y_train, y_valid = train_test_split(x_data, y_data, test_size=0.15, shuffle=True)
 
 
 # Generator
@@ -154,7 +154,8 @@ def main():
                       steps_per_epoch=int(np.ceil(len(x_train)*2/64)),
                       epochs=10,
                       verbose=1,
-                      validation_data=(x_valid, y_valid),
+                      validation_data=generator(x_valid, y_valid, 64),
+                      validation_steps=int(np.ceil(len(x_valid) * 2 / 64)),
                       callbacks=[early_stop, checkpoint, tensorboard])
 
 

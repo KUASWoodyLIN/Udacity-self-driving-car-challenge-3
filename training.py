@@ -4,6 +4,7 @@ from glob import glob
 
 import cv2
 import numpy as np
+import matplotlib.pyplot as plt
 
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
@@ -16,6 +17,9 @@ ROOT_DIR = os.getcwd()
 IMAGES_DIR = os.path.join(ROOT_DIR, 'IMG')
 CSV_FILE = os.path.join(ROOT_DIR, 'driving_log.csv')
 LOGS_PATH = os.path.join(ROOT_DIR, 'logs')
+
+# Learning parameter
+BATCH_SIZE = 64
 
 # Read csv file
 lines = []
@@ -88,8 +92,8 @@ def valid_proc(x, y):
   y_out = np.array(y_out)
   return shuffle(x_out, y_out)
 
-
-x_valid, y_valid = valid_proc(x_valid, y_valid)
+# only run this if you don't use valid_generator
+# x_valid, y_valid = valid_proc(x_valid, y_valid)
 
 
 def main():
@@ -163,31 +167,40 @@ def main():
                                mode='min',
                                period=1)
 
+  embedding_layer_names = set(layer.name
+                              for layer in model.layers
+                              if layer.name.startswith('dense_') or layer.name.startswith('conv2d_'))
+
   log_file_name = 'Driving_Car_' + str(len(glob(LOGS_PATH + '/Driving_Car_*')) + 1)
   tensorboard = TensorBoard(log_dir='./logs/' + log_file_name,
-                            histogram_freq=0,
-                            write_grads=True,
-                            write_images=False)
+                            histogram_freq=10,
+                            batch_size=BATCH_SIZE,
+                            write_graph=True,
+                            write_grads=False,
+                            write_images=False,)
+                            #embeddings_freq=10,
+                            #embeddings_layer_names=embedding_layer_names,
+                            #embeddings_metadata=None)
 
-#  train_generator = generator(x_train, y_train, 64)
-#  valid_generator = generator(x_valid, y_valid, 64)
 
   print('train: {}, valid: {}'.format(len(x_train), len(x_valid)))
-  model.fit_generator(generator=generator(x_train, y_train, 64),
-                      steps_per_epoch=int(np.ceil(len(x_train)*2/64)),
+#  history_object = model.fit_generator(generator=generator(x_train, y_train, 64),
+#                                       steps_per_epoch=int(np.ceil(len(x_train)*2/64)),
+#                                       epochs=20,
+#                                       verbose=1,
+#                                       validation_data=(x_valid, y_valid),
+#                                       callbacks=[early_stop, checkpoint, tensorboard])
+
+
+  train_generator = generator(x_train, y_train, BATCH_SIZE)
+  valid_generator = generator(x_valid, y_valid, BATCH_SIZE)
+
+  history_object = model.fit_generator(generator=train_generator,
+                      steps_per_epoch=np.ceil(len(x_train)*2/BATCH_SIZE),
                       epochs=20,
-                      verbose=1,
-                      validation_data=(x_valid, y_valid),
+                      validation_data=valid_generator,
+		      validation_steps=np.ceil(len(x_valid)*2/BATCH_SIZE),
                       callbacks=[early_stop, checkpoint, tensorboard])
-
-#  model.fit_generator(generator=train_generator,
-#                      steps_per_epoch=len(x_train)/32,
-#                      epochs=20,
-#                      verbose=1,
-#                      validation_data=valid_generator,
-#		      validation_steps=len(x_valid)/32,
-#                      callbacks=[early_stop, checkpoint, tensorboard])
-
 
 
 if __name__ == '__main__':

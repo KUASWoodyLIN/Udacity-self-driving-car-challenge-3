@@ -93,7 +93,7 @@ def valid_proc(x, y):
   return shuffle(x_out, y_out)
 
 # only run this if you don't use valid_generator
-# x_valid, y_valid = valid_proc(x_valid, y_valid)
+x_valid, y_valid = valid_proc(x_valid, y_valid)
 
 
 def main():
@@ -121,9 +121,7 @@ def main():
   # pool2 = MaxPool2D()(conv4)
   # conv5 = Conv2D(128, (3,3), padding='same', activation='relu')(pool2)
   # pool3 = MaxPool2D()(conv5)
-  #
   # flat = Flatten()(pool3)
-
   # hidden1 = Dense(256)(flat)
   # drop1 = Dropout(0.5)(hidden1)
   # hidden2 = Dense(128)(drop1)
@@ -145,8 +143,10 @@ def main():
   pool5 = MaxPooling2D()(conv5)
   flat = Flatten()(pool5)
   hidden1 = Dense(100)(flat)
-  hidden2 = Dense(50)(hidden1)
-  output = Dense(1)(hidden2)
+  drop1 = Dropout(0.5)(hidden1)
+  hidden2 = Dense(50)(drop1)
+  drop2 = Dropout(0.5)(hidden2)
+  output = Dense(1)(drop2)
 
 
   model = Model(x_input, output)
@@ -154,12 +154,14 @@ def main():
   model.summary()
   print("")
 
+  # automatic stop learning when model have not improve
   early_stop = EarlyStopping(monitor='val_loss',
-                             min_delta=0.0005,
+                             min_delta=0.00005,
                              patience=4,
                              mode='min',
                              verbose=1)
 
+  # save the model automatic
   checkpoint = ModelCheckpoint('model.h5',
                                monitor='val_loss',
                                verbose=1,
@@ -167,10 +169,12 @@ def main():
                                mode='min',
                                period=1)
 
-  embedding_layer_names = set(layer.name
-                              for layer in model.layers
-                              if layer.name.startswith('dense_') or layer.name.startswith('conv2d_'))
+#  not use for this project
+#  embedding_layer_names = set(layer.name
+#                              for layer in model.layers
+#                              if layer.name.startswith('dense_') or layer.name.startswith('conv2d_'))
 
+  # Tensorboard
   log_file_name = 'Driving_Car_' + str(len(glob(LOGS_PATH + '/Driving_Car_*')) + 1)
   tensorboard = TensorBoard(log_dir='./logs/' + log_file_name,
                             histogram_freq=10,
@@ -184,23 +188,23 @@ def main():
 
 
   print('train: {}, valid: {}'.format(len(x_train), len(x_valid)))
-#  history_object = model.fit_generator(generator=generator(x_train, y_train, 64),
-#                                       steps_per_epoch=int(np.ceil(len(x_train)*2/64)),
-#                                       epochs=20,
-#                                       verbose=1,
-#                                       validation_data=(x_valid, y_valid),
-#                                       callbacks=[early_stop, checkpoint, tensorboard])
+  history_object = model.fit_generator(generator=generator(x_train, y_train, 64),
+                                       steps_per_epoch=int(np.ceil(len(x_train)*2/64)),
+                                       epochs=20,
+                                       verbose=1,
+                                       validation_data=(x_valid, y_valid),
+                                       callbacks=[early_stop, checkpoint, tensorboard])
 
 
-  train_generator = generator(x_train, y_train, BATCH_SIZE)
-  valid_generator = generator(x_valid, y_valid, BATCH_SIZE)
+#  train_generator = generator(x_train, y_train, BATCH_SIZE)
+#  valid_generator = generator(x_valid, y_valid, BATCH_SIZE)
 
-  history_object = model.fit_generator(generator=train_generator,
-                      steps_per_epoch=np.ceil(len(x_train)*2/BATCH_SIZE),
-                      epochs=20,
-                      validation_data=valid_generator,
-		      validation_steps=np.ceil(len(x_valid)*2/BATCH_SIZE),
-                      callbacks=[early_stop, checkpoint, tensorboard])
+#  history_object = model.fit_generator(generator=train_generator,
+#                      steps_per_epoch=np.ceil(len(x_train)*2/BATCH_SIZE),
+#                      epochs=20,
+#                      validation_data=valid_generator,
+#		      validation_steps=np.ceil(len(x_valid)*2/BATCH_SIZE),
+#                      callbacks=[early_stop, checkpoint, tensorboard])
 
 
 if __name__ == '__main__':

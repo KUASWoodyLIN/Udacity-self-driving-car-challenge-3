@@ -1,6 +1,8 @@
 driving_log.csv
-model.h5
+model*
 IMG/
 
 logs/
 data*
+*.h5
+run*

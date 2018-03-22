@@ -1,124 +1,138 @@
-# Behaviorial Cloning Project
+# Self Driving Car on Simulator
 
-[![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
+### Quick Start
 
-Overview
+**安裝：**
+系統要求：ubuntu
+1. 模擬器
+  ```shell
+    wget https://d17h27t6h515a5.cloudfront.net/topher/2017/February/58ae46bb_linux-sim/linux-sim.zip
+    unzip linux-sim.zip
+    chmod a+x linux_sim.x86_64 
+  ```
+
+2. 自動駕駛專案 
+
+    ```shell
+    git clone https://github.com/KUASWoodyLIN/Udacity-self-driving-car-challenge-3.git
+    ```
+
+
+
+
+**模擬器使用介紹： ** [Link](https://towardsdatascience.com/introduction-to-udacity-self-driving-car-simulator-4d78198d301d)
+
+**drive.py：**
+
+`python drive.py model.h5`
+
+`python drive.py model.h5 run1`		# 儲存自動駕駛影像
+
+**video.py**
+
+`python video.py run1`				# 預設 fps=60
+
+`python video.py run1 --fps 48`
+
 ---
-This repository contains starting files for the Behavioral Cloning Project.
 
-In this project, you will use what you've learned about deep neural networks and convolutional neural networks to clone driving behavior. You will train, validate and test a model using Keras. The model will output a steering angle to an autonomous vehicle.
+### 專案的路徑布局
 
-We have provided a simulator where you can steer a car around a track for data collection. You'll use image data and steering angles to train a neural network and then use this model to drive the car autonomously around the track.
+```
+Udacity-self-driving-car-challenge-3/
+├── __init__.py
+├── README.md
+├── drive.py					# 模擬器-自動駕駛的程序
+├── video.py					# 產生Video的程序
+├── video.mp4					# 執行結果
+├── model.h5					# 網絡模型
+├── model.py					# training model
+├── LICENSE
+└── examples/
+    ├── placeholder.png
+    └── placeholder_small.png
+```
 
-We also want you to create a detailed writeup of the project. Check out the [writeup template](https://github.com/udacity/CarND-Behavioral-Cloning-P3/blob/master/writeup_template.md) for this project and use it as a starting point for creating your own writeup. The writeup can be either a markdown file or a pdf document.
-
-To meet specifications, the project will require submitting five files: 
-* model.py (script used to create and train the model)
-* drive.py (script to drive the car - feel free to modify this file)
-* model.h5 (a trained Keras model)
-* a report writeup file (either markdown or pdf)
-* video.mp4 (a video recording of your vehicle driving autonomously around the track for at least one full lap)
-
-This README file describes how to output the video in the "Details About Files In This Directory" section.
-
-Creating a Great Writeup
 ---
-A great writeup should include the [rubric points](https://review.udacity.com/#!/rubrics/432/view) as well as your description of how you addressed each point.  You should include a detailed description of the code used (with line-number references and code snippets where necessary), and links to other supporting documents or external references.  You should include images in your writeup to demonstrate how your code works with examples.  
 
-All that said, please be concise!  We're not looking for you to write a book here, just a brief description of how you passed each rubric point, and references to the relevant code :). 
+### 網絡模型架構與訓練策略
 
-You're not required to use markdown for your writeup.  If you use another method please just submit a pdf of your writeup.
+1. 模型架構
 
-The Project
----
-The goals / steps of this project are the following:
-* Use the simulator to collect data of good driving behavior 
-* Design, train and validate a model that predicts a steering angle from image data
-* Use the model to drive the vehicle autonomously around the first track in the simulator. The vehicle should remain on the road for an entire loop around the track.
-* Summarize the results with a written report
+   這次的模型架構我有嘗試過Lenet、VGG16(改)、[Nvidia paper](https://arxiv.org/pdf/1604.07316v1.pdf)等等，最終決定使用Nvidia因為使用的參數不會太多也能得到良好的結果，最後測試連續跑好幾圈都沒問題。
 
-### Dependencies
-This lab requires:
+   還有其他的網絡架構可以嘗試：[comma ai paper](https://arxiv.org/pdf/1608.01230.pdf)、[comma ai code](https://github.com/commaai/research/blob/master/train_steering_model.py)
 
-* [CarND Term1 Starter Kit](https://github.com/udacity/CarND-Term1-Starter-Kit)
+2. 避免過擬合
 
-The lab enviroment can be created with CarND Term1 Starter Kit. Click [here](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/README.md) for the details.
+   - 使用dropout方法避免過擬合。雖然在還沒加上dropout的Nvidia的網絡架構已經可以很好的完成自動駕駛，但加了後loss還是有稍稍降低。
+   - 使用EarlyStopping與ModelCheckpoint，當訓練超過4輪val_loss沒有下降就會停止訓練，並存下val_loss最低的model。
 
-The following resources can be found in this github repository:
-* drive.py
-* video.py
-* writeup_template.md
+3. 模型參數調整
 
-The simulator can be downloaded from the classroom. In the classroom, we have also provided sample data that you can optionally use to help train your model.
+   - 預處理：
 
-## Details About Files In This Directory
+     Cropping將照片中不必要的資訊移除掉。
 
-### `drive.py`
+     `crop = Cropping2D(((55,20),(0,0)))(x_input)`
 
-Usage of `drive.py` requires you have saved the trained model as an h5 file, i.e. `model.h5`. See the [Keras documentation](https://keras.io/getting-started/faq/#how-can-i-save-a-keras-model) for how to create this file using the following command:
-```sh
-model.save(filepath)
-```
+     mean normalization，將輸入除255再減去0.5。
 
-Once the model has been saved, it can be used with drive.py using this command:
+     `normalize = Lambda(lambda x: (x /255.0) - 0.5)(crop)`
 
-```sh
-python drive.py model.h5
-```
+     *注意：這部份需要使用Lambda來加入網絡層，不能直接在網絡外面normalization，因為在simulator中並部會輸入normalization過後的資訊*。
 
-The above command will load the trained model and use the model to make predictions on individual images in real-time and send the predicted angle back to the server via a websocket connection.
+   - 優化器：使用預設adam。
 
-Note: There is known local system's setting issue with replacing "," with "." when using drive.py. When this happens it can make predicted steering values clipped to max/min values. If this occurs, a known fix for this is to add "export LANG=en_US.utf8" to the bashrc file.
+4. 適當的訓練資料
 
-#### Saving a video of the autonomous agent
+   - 自己使用模擬器收集更多的訓練數據，並將自己收集的資料與原本資料合併。
+   - 將左、右兩個相機照片拿來訓練，並使用中間照片的轉向+-0.5為左右照片轉向，**主要目的在於增加汽車轉向的資料量，避免訓練資料絕大部分都是直線資料的問題**。
+       ```python
+       # image path
+       img_center = os.path.join(IMAGES_DIR, line[0].split('/')[-1])
+       img_left = os.path.join(IMAGES_DIR, line[1].split('/')[-1])
+       img_right = os.path.join(IMAGES_DIR, line[2].split('/')[-1])
+       x_data.append(img_center)
+       x_data.append(img_left)
+       x_data.append(img_right)
 
-```sh
-python drive.py model.h5 run1
-```
+       # steering angle
+       steering_center = float(line[3])
+       correction = 0.25  # this is a parameter to tune
+       steering_left = steering_center + correction
+       steering_right = steering_center - correction
+       y_data.append(steering_center)
+       y_data.append(steering_left)
+       y_data.append(steering_right)
+       ```
+   - 將資料翻轉，能增加一倍的資料量。
+       ```python
+       img = cv2.imread(img_path)
+       img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+       x_batch.append(img)
+       y_batch.append(steer)
+       img_flip = cv2.flip(img, 1)
+       x_batch.append(img_flip)
+       y_batch.append(-steer)
+       ```
 
-The fourth argument, `run1`, is the directory in which to save the images seen by the agent. If the directory already exists, it'll be overwritten.
+5. 生成器 generator
 
-```sh
-ls run1
+   此用原本的方法一次性將資料全部讀入會使用到很大量的記憶體，一般的電腦可能承受不了，所以使用generator可以分批次將資料讀入訓練可以解決以上問題，但會影響訓練速度。
 
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_424.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_451.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_477.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_528.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_573.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_618.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_697.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_723.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_749.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_817.jpg
-...
-```
+6. Tensorboard
 
-The image file name is a timestamp of when the image was seen. This information is used by `video.py` to create a chronological video of the agent driving.
+   Tensorflow提供可以可視化訓練過得的工具，不同於課堂上介紹的方法，使用Tensorboard可以即時監控 Loss、weight、bias變換，如果即時發現錯誤可以將程序停止下來，還有提供其Graphs、Embedding等強大功能。
 
-### `video.py`
+   - Loss顯示
 
-```sh
-python video.py run1
-```
+     ![loss](./examples/ch3_loss.png)
 
-Creates a video based on images found in the `run1` directory. The name of the video will be the name of the directory followed by `'.mp4'`, so, in this case the video will be `run1.mp4`.
+   - Graph 網路架構圖
 
-Optionally, one can specify the FPS (frames per second) of the video:
+     ![graphs](./examples/ch3_graphs.png)
 
-```sh
-python video.py run1 --fps 48
-```
+   - 權重參數分佈
 
-Will run the video at 48 FPS. The default FPS is 60.
-
-#### Why create a video
-
-1. It's been noted the simulator might perform differently based on the hardware. So if your model drives succesfully on your machine it might not on another machine (your reviewer). Saving a video is a solid backup in case this happens.
-2. You could slightly alter the code in `drive.py` and/or `video.py` to create a video of what your model sees after the image is processed (may be helpful for debugging).
-
-### Tips
-- Please keep in mind that training images are loaded in BGR colorspace using cv2 while drive.py load images in RGB to predict the steering angles.
-
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
+     ![distributions](./examples/ch3_distributions.png)
